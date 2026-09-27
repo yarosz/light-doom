@@ -1,0 +1,23 @@
+[tools]
+java = "temurin-17"
+android-sdk = "23.0"
+
+[env]
+ANDROID_HOME = "{{env.HOME}}/Library/Android/sdk"
+ANDROID_SDK_ROOT = "{{env.HOME}}/Library/Android/sdk"
+_.path = [
+  "{{env.HOME}}/Library/Android/sdk/emulator",
+  "{{env.HOME}}/Library/Android/sdk/platform-tools",
+]
+
+[tasks.release]
+description = "Unsigned minified release build, the flag Light's builder passes"
+run = "./gradlew :tool:assembleRelease -DlightSdk.unsigned=true"
+
+[tasks.light-build]
+description = "Light-builder simulation: extraction policy + offline unsigned release (arg: --tree for the working tree)"
+run = "scripts/light-build.sh"
+
+[settings]
+task.run_auto_install = false
+exec_auto_install = false

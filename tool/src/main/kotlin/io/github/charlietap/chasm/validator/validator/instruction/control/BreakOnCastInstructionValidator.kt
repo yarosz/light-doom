@@ -1,0 +1,72 @@
+package io.github.charlietap.chasm.validator.validator.instruction.control
+
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.binding
+import io.github.charlietap.chasm.ast.instruction.ControlInstruction
+import io.github.charlietap.chasm.type.ReferenceType
+import io.github.charlietap.chasm.type.ValueType
+import io.github.charlietap.chasm.type.differ.ReferenceTypeDiffer
+import io.github.charlietap.chasm.type.differ.TypeDiffer
+import io.github.charlietap.chasm.type.matching.ReferenceTypeMatcher
+import io.github.charlietap.chasm.type.matching.TypeMatcher
+import io.github.charlietap.chasm.type.matching.ValueTypeMatcher
+import io.github.charlietap.chasm.validator.ModuleValidator
+import io.github.charlietap.chasm.validator.context.ModuleValidationContext
+import io.github.charlietap.chasm.validator.error.ModuleValidatorError
+import io.github.charlietap.chasm.validator.error.TypeValidatorError
+import io.github.charlietap.chasm.validator.ext.branchValues
+import io.github.charlietap.chasm.validator.ext.peek
+import io.github.charlietap.chasm.validator.ext.popValues
+import io.github.charlietap.chasm.validator.ext.pushValues
+import io.github.charlietap.chasm.validator.validator.type.ReferenceTypeValidator
+
+internal fun BreakOnCastInstructionValidator(
+    context: ModuleValidationContext,
+    instruction: ControlInstruction.BrOnCast,
+): Result<Unit, ModuleValidatorError> =
+    BreakOnCastInstructionValidator(
+        context = context,
+        instruction = instruction,
+        referenceTypeDiffer = ::ReferenceTypeDiffer,
+        referenceTypeValidator = ::ReferenceTypeValidator,
+        referenceTypeMatcher = ::ReferenceTypeMatcher,
+        valueTypeMatcher = ::ValueTypeMatcher,
+    )
+
+internal inline fun BreakOnCastInstructionValidator(
+    context: ModuleValidationContext,
+    instruction: ControlInstruction.BrOnCast,
+    crossinline referenceTypeDiffer: TypeDiffer<ReferenceType>,
+    crossinline referenceTypeValidator: ModuleValidator<ReferenceType>,
+    crossinline referenceTypeMatcher: TypeMatcher<ReferenceType>,
+    crossinline valueTypeMatcher: TypeMatcher<ValueType>,
+): Result<Unit, ModuleValidatorError> = binding {
+
+    referenceTypeValidator(context, instruction.srcReferenceType).bind()
+    referenceTypeValidator(context, instruction.dstReferenceType).bind()
+
+    if (!referenceTypeMatcher(instruction.dstReferenceType, instruction.srcReferenceType, context)) {
+        Err(TypeValidatorError.TypeMismatch).bind()
+    }
+
+    val label = context.labels.peek(instruction.labelIndex).bind()
+
+    val outputs = label.branchValues
+
+    if (outputs.types.isEmpty()) {
+        Err(TypeValidatorError.TypeMismatch).bind()
+    }
+
+    val t0 = outputs.types.dropLast(1)
+    val t1 = outputs.types.last()
+
+    if (!valueTypeMatcher(ValueType.Reference(instruction.dstReferenceType), t1, context)) {
+        Err(TypeValidatorError.TypeMismatch).bind()
+    }
+
+    val diffed = referenceTypeDiffer(instruction.srcReferenceType, instruction.dstReferenceType)
+
+    context.popValues(t0 + listOf(ValueType.Reference(instruction.srcReferenceType))).bind()
+    context.pushValues(t0 + listOf(ValueType.Reference(diffed)))
+}

@@ -1,0 +1,11 @@
+[tool]
+id = "com.yarosz.doom"
+label = "Doom"
+versionCode = 1
+versionName = "0.1.0"
+# Light-clean: no special permissions. scripts/color-build.sh adds WRITE_SECURE_SETTINGS for color builds.
+permissions = []
+capabilities = []
+orientation = "portrait"
+# LightOS on the phone. Emulator builds swap in com.thelightphone.sdk.emulator (scripts/emulator-build.sh).
+serverPackage = "com.lightos"

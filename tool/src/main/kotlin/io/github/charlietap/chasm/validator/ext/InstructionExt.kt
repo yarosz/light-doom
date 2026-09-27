@@ -1,0 +1,161 @@
+package io.github.charlietap.chasm.validator.ext
+
+import io.github.charlietap.chasm.ast.instruction.AtomicMemoryInstruction
+import io.github.charlietap.chasm.ast.instruction.Instruction
+import io.github.charlietap.chasm.ast.instruction.MemoryInstruction
+import io.github.charlietap.chasm.ast.instruction.VectorInstruction
+
+fun Instruction?.size(): Int = when (this) {
+    is AtomicMemoryInstruction -> size()
+    is MemoryInstruction -> size()
+    is VectorInstruction -> size()
+    else -> 0
+}
+
+private fun AtomicMemoryInstruction.size(): Int = when (this) {
+
+    is AtomicMemoryInstruction.Notify -> 4
+    is AtomicMemoryInstruction.I32Wait -> 4
+    is AtomicMemoryInstruction.I64Wait -> 8
+
+    is AtomicMemoryInstruction.Load.I32.I32Load -> 4
+    is AtomicMemoryInstruction.Load.I32.I32Load8U -> 1
+    is AtomicMemoryInstruction.Load.I32.I32Load16U -> 2
+    is AtomicMemoryInstruction.Load.I64.I64Load -> 8
+    is AtomicMemoryInstruction.Load.I64.I64Load8U -> 1
+    is AtomicMemoryInstruction.Load.I64.I64Load16U -> 2
+    is AtomicMemoryInstruction.Load.I64.I64Load32U -> 4
+
+    is AtomicMemoryInstruction.Store.I32.I32Store -> 4
+    is AtomicMemoryInstruction.Store.I32.I32Store8 -> 1
+    is AtomicMemoryInstruction.Store.I32.I32Store16 -> 2
+    is AtomicMemoryInstruction.Store.I64.I64Store -> 8
+    is AtomicMemoryInstruction.Store.I64.I64Store8 -> 1
+    is AtomicMemoryInstruction.Store.I64.I64Store16 -> 2
+    is AtomicMemoryInstruction.Store.I64.I64Store32 -> 4
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWriteAdd -> 4
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite8Add -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite16Add -> 2
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWriteAnd -> 4
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite8And -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite16And -> 2
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWriteExchange -> 4
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite8Exchange -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite16Exchange -> 2
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWriteOr -> 4
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite8Or -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite16Or -> 2
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWriteSub -> 4
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite8Sub -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite16Sub -> 2
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWriteXor -> 4
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite8Xor -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I32.I32ReadModifyWrite16Xor -> 2
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWriteAdd -> 8
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite8Add -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite16Add -> 2
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite32Add -> 4
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWriteAnd -> 8
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite8And -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite16And -> 2
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite32And -> 4
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWriteExchange -> 8
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite8Exchange -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite16Exchange -> 2
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite32Exchange -> 4
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWriteOr -> 8
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite8Or -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite16Or -> 2
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite32Or -> 4
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWriteSub -> 8
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite8Sub -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite16Sub -> 2
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite32Sub -> 4
+
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWriteXor -> 8
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite8Xor -> 1
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite16Xor -> 2
+    is AtomicMemoryInstruction.ReadModifyWrite.I64.I64ReadModifyWrite32Xor -> 4
+
+    is AtomicMemoryInstruction.CompareExchange.I32.I32CompareExchange -> 4
+    is AtomicMemoryInstruction.CompareExchange.I32.I32CompareExchange8 -> 1
+    is AtomicMemoryInstruction.CompareExchange.I32.I32CompareExchange16 -> 2
+
+    is AtomicMemoryInstruction.CompareExchange.I64.I64CompareExchange -> 8
+    is AtomicMemoryInstruction.CompareExchange.I64.I64CompareExchange8 -> 1
+    is AtomicMemoryInstruction.CompareExchange.I64.I64CompareExchange16 -> 2
+    is AtomicMemoryInstruction.CompareExchange.I64.I64CompareExchange32 -> 4
+
+    else -> 0
+}
+
+private fun MemoryInstruction.size(): Int = when (this) {
+
+    is MemoryInstruction.Load.I32.I32Load -> 4
+    is MemoryInstruction.Load.I32.I32Load8S -> 1
+    is MemoryInstruction.Load.I32.I32Load8U -> 1
+    is MemoryInstruction.Load.I32.I32Load16S -> 2
+    is MemoryInstruction.Load.I32.I32Load16U -> 2
+
+    is MemoryInstruction.Load.I64.I64Load -> 8
+    is MemoryInstruction.Load.I64.I64Load8S -> 1
+    is MemoryInstruction.Load.I64.I64Load8U -> 1
+    is MemoryInstruction.Load.I64.I64Load16S -> 2
+    is MemoryInstruction.Load.I64.I64Load16U -> 2
+    is MemoryInstruction.Load.I64.I64Load32S -> 4
+    is MemoryInstruction.Load.I64.I64Load32U -> 4
+
+    is MemoryInstruction.Store.I32.I32Store -> 4
+    is MemoryInstruction.Store.I32.I32Store8 -> 1
+    is MemoryInstruction.Store.I32.I32Store16 -> 2
+    is MemoryInstruction.Store.I64.I64Store -> 8
+    is MemoryInstruction.Store.I64.I64Store8 -> 1
+    is MemoryInstruction.Store.I64.I64Store16 -> 2
+    is MemoryInstruction.Store.I64.I64Store32 -> 4
+
+    is MemoryInstruction.Load.F32.F32Load -> 4
+    is MemoryInstruction.Load.F64.F64Load -> 8
+    is MemoryInstruction.Store.F32.F32Store -> 4
+    is MemoryInstruction.Store.F64.F64Store -> 8
+
+    else -> 0
+}
+
+private fun VectorInstruction.size(): Int = when (this) {
+
+    is VectorInstruction.V128Load -> 16
+    is VectorInstruction.V128Store -> 16
+    is VectorInstruction.V128Load8x8S -> 8
+    is VectorInstruction.V128Load8x8U -> 8
+    is VectorInstruction.V128Load16x4S -> 8
+    is VectorInstruction.V128Load16x4U -> 8
+    is VectorInstruction.V128Load32x2S -> 8
+    is VectorInstruction.V128Load32x2U -> 8
+    is VectorInstruction.V128Load8Splat -> 1
+    is VectorInstruction.V128Load16Splat -> 2
+    is VectorInstruction.V128Load32Splat -> 4
+    is VectorInstruction.V128Load64Splat -> 8
+    is VectorInstruction.V128Load32Zero -> 4
+    is VectorInstruction.V128Load64Zero -> 8
+    is VectorInstruction.V128Load8Lane -> 1
+    is VectorInstruction.V128Load16Lane -> 2
+    is VectorInstruction.V128Load32Lane -> 4
+    is VectorInstruction.V128Load64Lane -> 8
+    is VectorInstruction.V128Store8Lane -> 1
+    is VectorInstruction.V128Store16Lane -> 2
+    is VectorInstruction.V128Store32Lane -> 4
+    is VectorInstruction.V128Store64Lane -> 8
+
+    else -> 0
+}

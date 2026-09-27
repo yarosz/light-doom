@@ -1,0 +1,165 @@
+package io.github.charlietap.chasm.executor.invoker.instruction.reference
+
+import io.github.charlietap.chasm.executor.invoker.type.Caster
+import io.github.charlietap.chasm.runtime.error.InvocationError
+import io.github.charlietap.chasm.runtime.exception.InvocationException
+import io.github.charlietap.chasm.runtime.execution.ExecutionContext
+import io.github.charlietap.chasm.runtime.ext.isNullableReference
+import io.github.charlietap.chasm.runtime.instruction.ReferenceInstruction
+import io.github.charlietap.chasm.runtime.stack.ValueStack
+import io.github.charlietap.chasm.runtime.type.ReferenceTypeTest
+
+internal inline fun RefEqExecutor(
+    vstack: ValueStack,
+    context: ExecutionContext,
+    instruction: ReferenceInstruction.RefEqSs,
+) = executeRefEq(
+    vstack = vstack,
+    reference1 = vstack.getFrameSlot(instruction.reference1Slot),
+    reference2 = vstack.getFrameSlot(instruction.reference2Slot),
+    destinationSlot = instruction.destinationSlot,
+)
+
+internal inline fun RefIsNullExecutor(
+    vstack: ValueStack,
+    context: ExecutionContext,
+    instruction: ReferenceInstruction.RefIsNullS,
+) = executeRefIsNull(
+    vstack = vstack,
+    value = vstack.getFrameSlot(instruction.valueSlot),
+    destinationSlot = instruction.destinationSlot,
+)
+
+internal inline fun RefAsNonNullExecutor(
+    vstack: ValueStack,
+    context: ExecutionContext,
+    instruction: ReferenceInstruction.RefAsNonNullS,
+) {
+    val value = vstack.getFrameSlot(instruction.valueSlot)
+    if (value.isNullableReference()) {
+        throw InvocationException(InvocationError.NonNullReferenceExpected)
+    }
+    vstack.setFrameSlot(instruction.destinationSlot, value)
+}
+
+internal inline fun RefNullExecutor(
+    vstack: ValueStack,
+    context: ExecutionContext,
+    instruction: ReferenceInstruction.RefNullS,
+) {
+    vstack.setFrameSlot(instruction.destinationSlot, instruction.reference)
+}
+
+internal inline fun RefFuncExecutor(
+    vstack: ValueStack,
+    context: ExecutionContext,
+    instruction: ReferenceInstruction.RefFuncS,
+) {
+    vstack.setFrameSlot(instruction.destinationSlot, instruction.reference)
+}
+
+internal fun RefTestExecutor(
+    vstack: ValueStack,
+    context: ExecutionContext,
+    instruction: ReferenceInstruction.RefTestS,
+) = RefTestExecutor(
+    vstack = vstack,
+    context = context,
+    instruction = instruction,
+    caster = ::Caster,
+)
+
+internal inline fun RefTestExecutor(
+    vstack: ValueStack,
+    context: ExecutionContext,
+    instruction: ReferenceInstruction.RefTestS,
+    crossinline caster: Caster,
+) = executeRefTest(
+    vstack = vstack,
+    context = context,
+    referenceValue = vstack.getFrameSlot(instruction.referenceSlot),
+    typeTest = instruction.typeTest,
+    destinationSlot = instruction.destinationSlot,
+    caster = caster,
+)
+
+internal fun RefCastExecutor(
+    vstack: ValueStack,
+    context: ExecutionContext,
+    instruction: ReferenceInstruction.RefCastS,
+) = RefCastExecutor(
+    vstack = vstack,
+    context = context,
+    instruction = instruction,
+    caster = ::Caster,
+)
+
+internal inline fun RefCastExecutor(
+    vstack: ValueStack,
+    context: ExecutionContext,
+    instruction: ReferenceInstruction.RefCastS,
+    crossinline caster: Caster,
+) = executeRefCast(
+    vstack = vstack,
+    context = context,
+    referenceValue = vstack.getFrameSlot(instruction.referenceSlot),
+    typeTest = instruction.typeTest,
+    destinationSlot = instruction.destinationSlot,
+    caster = caster,
+)
+
+private inline fun executeRefEq(
+    vstack: ValueStack,
+    reference1: Long,
+    reference2: Long,
+    destinationSlot: Int,
+) {
+    val bothTypesAreNull = reference1.isNullableReference() && reference2.isNullableReference()
+    if (bothTypesAreNull || reference1 == reference2) {
+        vstack.setFrameSlot(destinationSlot, 1L)
+    } else {
+        vstack.setFrameSlot(destinationSlot, 0L)
+    }
+}
+
+private inline fun executeRefIsNull(
+    vstack: ValueStack,
+    value: Long,
+    destinationSlot: Int,
+) {
+    if (value.isNullableReference()) {
+        vstack.setFrameSlot(destinationSlot, 1L)
+    } else {
+        vstack.setFrameSlot(destinationSlot, 0L)
+    }
+}
+
+private inline fun executeRefTest(
+    vstack: ValueStack,
+    context: ExecutionContext,
+    referenceValue: Long,
+    typeTest: ReferenceTypeTest,
+    destinationSlot: Int,
+    crossinline caster: Caster,
+) {
+    if (caster(referenceValue, typeTest, context)) {
+        vstack.setFrameSlot(destinationSlot, 1L)
+    } else {
+        vstack.setFrameSlot(destinationSlot, 0L)
+    }
+}
+
+private inline fun executeRefCast(
+    vstack: ValueStack,
+    context: ExecutionContext,
+    referenceValue: Long,
+    typeTest: ReferenceTypeTest,
+    destinationSlot: Int,
+    crossinline caster: Caster,
+) {
+    if (caster(referenceValue, typeTest, context)) {
+        vstack.setFrameSlot(destinationSlot, referenceValue)
+    } else {
+        throw InvocationException(InvocationError.FailedToCastReference)
+    }
+}
