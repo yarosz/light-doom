@@ -47,27 +47,18 @@ no cable, or with adb. Color needs adb once either way.
 
 ### Over Wi-Fi
 
-Light's guide describes a `Developer` section in the phone's File Manager, which LightOS 582 doesn't show yet. Its
-Tool Inbox works, though, and `installer/lp3-install.py` uploads to it. It's one Python file that needs Python
-3.9 or newer (macOS includes it; on Windows, install it from [python.org](https://www.python.org/downloads/)).
+Use [lightphone-wifi-install](https://github.com/yarosz/lightphone-wifi-install), which uploads a Tool to the
+Tool Inbox of the phone's File Manager and needs only Python on your computer. Light's own guide describes a
+`Developer` section there that LightOS 582 doesn't show yet; the Tool Inbox works today.
 
 1. Put the phone and your computer on the same Wi-Fi, and turn off any VPN on the computer.
-2. Run `python3 installer/lp3-install.py` (on Windows, `py installer\lp3-install.py`). It opens a page at
-   `http://localhost:54450/`.
+2. Run `python3 lp3-install.py` from lightphone-wifi-install (on Windows, `py lp3-install.py`).
 3. Open this install link, which fills in Doom and its published SHA-256:
    <http://localhost:54450/?apk=https%3A%2F%2Fgithub.com%2Fyarosz%2Flight-doom%2Freleases%2Fdownload%2Fv0.1.0%2Flight-doom-color-v0.1.0.apk&sha256=daaf4879211113ba2d4b1ac6af00a722689f25828fadcb57650023974f76fedb>
-4. On the phone, open Settings > Debug > File Manager. Hold its QR code up to your computer's camera, or paste the
-   address it shows.
+4. On the phone, open Settings > Debug > File Manager, and hold its QR code up to your computer's camera.
 5. Click Install on the phone, then open Doom from LightOS's Tools list.
 
-The page installs other Tools too: drop in an APK file or paste a link to one. It shows the package, version,
-permissions and SHA-256 first, notes when an APK is an ordinary Android app rather than a Light Tool, and refuses
-one whose SHA-256 doesn't match the hash you give it. LightOS installs whatever reaches the Tool Inbox without
-asking, so only install APKs from people you trust.
-
-One scan lasts until you press Back in the File Manager: the screen can sleep and you can install several Tools in a
-row. Updates through the page keep an earlier color grant. `scripts/wifi-install.sh` does the same from a
-terminal: run it with no arguments and it reads the QR code with your camera.
+Updating Doom this way keeps an earlier color grant.
 
 ### With adb
 
@@ -137,9 +128,6 @@ Doom's tick rate is 35 Hz, so both run at full speed. The interpreter uses about
 - `scripts/run.sh [-s serial] [-d seconds] [-v debug|release] [-c]` builds, installs and launches on the attached
   LP3 (else the emulator) and reports the frame rate from the Tool's `perf` log lines.
 - `scripts/touch-check.sh [serial]` checks that touches reach the right controls through the rotation.
-- `installer/lp3-install.py [--port N] [--no-browser]` serves the Wi-Fi install page (see Installing).
-- `scripts/wifi-install.sh [-a apk-file-or-url] [-h sha256] ['<file manager url>']` installs over Wi-Fi from a
-  terminal; without a url, `scripts/qr-scan.py` reads the File Manager's QR code with the camera.
 - `mise run light-build` rehearses Light's release builder on the default build (`--tree` for the working tree).
 - `scripts/vendor.py <chasm> <kotlin-result> <mood>` regenerates the vendored source (see below).
 
