@@ -43,9 +43,9 @@ no cable, or with adb. Color needs adb once either way.
    It only makes Settings > Developer appear, for the next step; you can turn it off again afterwards.
 2. In the phone's Settings > Developer, set Allowed tools to All tools. Doom is dev-signed, not signed by Light,
    and with any other setting the phone installs it but hides it from the Tools list.
-3. Open the Phone tool and dial `*7412369#`. That's what makes Settings show Debug, where the File Manager is:
-   on the phone this was tested on, Debug never appeared until then. The code also opens the developer menu that
-   [With adb](#with-adb) uses, where nothing needs changing for Wi-Fi install.
+3. Open the Phone tool, dial `*7412369#` and press the call button. That makes Settings show Debug, where the
+   File Manager is; on the phone this was tested on, Debug never appeared until then. The same code turns Debug
+   off again, and Doom stays in the Tools list.
 
 ### Over Wi-Fi
 
@@ -68,9 +68,10 @@ in lightphone-wifi-install; on the phone this was tested on, adding a new Tool w
 ### With adb
 
 Light doesn't document turning on USB debugging. The route LP3 owners use: open the Phone tool, dial `*7412369#`
-to open the developer menu, and turn on "Android Dev Mode" (USB debugging). Change only that toggle. You also need
-`adb` from Android's [platform-tools](https://developer.android.com/tools/releases/platform-tools) and a USB-C cable
-that carries data, and the phone awake and unlocked (it drops off USB when it sleeps).
+and press the call button to open the developer menu, and turn on "Android Dev Mode" (USB debugging). Change
+only that toggle. You also need `adb` from Android's
+[platform-tools](https://developer.android.com/tools/releases/platform-tools) and a USB-C cable that carries data,
+and the phone awake and unlocked (it drops off USB when it sleeps).
 
 1. Check the phone shows up: `adb devices`.
 2. Install (skip this if you installed over Wi-Fi) and grant color:
