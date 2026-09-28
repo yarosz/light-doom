@@ -11,7 +11,9 @@ Install links: a Tool's page can link to http://localhost:54450/?apk=<APK link>&
 opens with that Tool filled in. The installer must be running for the link to open.
 
 Only the standard library is used, so any Python 3.9+ runs it. LightOS installs whatever reaches the Tool
-Inbox, with no prompt, so this refuses APKs that aren't Light Tools and APKs whose SHA-256 doesn't match.
+Inbox, with no prompt: Light Tools, and ordinary Android apps too, which then appear in the Tools list when
+the phone allows all Tools. So this refuses APKs whose SHA-256 doesn't match, and sends an APK that isn't a
+Light Tool only after the person ticks a box saying they understand.
 """
 import argparse
 import hashlib
@@ -20,6 +22,7 @@ import io
 import json
 import re
 import secrets
+import socket
 import ssl
 import struct
 import sys
@@ -149,6 +152,34 @@ def _ssl_context():
     return ssl.create_default_context()
 
 
+_phone_contexts = {}
+
+
+def phone_context(base):
+    """A verifying TLS context for the phone. LightOS sends its *.my.local-ip.co certificate without the
+    intermediate that signed it; browsers fetch that from the certificate's CA Issuers address, and so do
+    we. Verification is unchanged: the chain must still end at a root this computer trusts."""
+    if base in _phone_contexts:
+        return _phone_contexts[base]
+    host, _, port = urllib.parse.urlsplit(base).netloc.partition(":")
+    address = (host, int(port or 443))
+    context = _ssl_context()
+    context.set_alpn_protocols(["http/1.1"])
+    try:
+        with socket.create_connection(address, timeout=10) as sock:
+            with context.wrap_socket(sock, server_hostname=host):
+                pass
+    except ssl.SSLCertVerificationError:
+        leaf = ssl.PEM_cert_to_DER_cert(ssl.get_server_certificate(address, timeout=10))
+        issuer = re.search(rb"http://[\x21-\x7e]+?\.crt", leaf)
+        if not issuer:
+            raise
+        with urllib.request.urlopen(issuer.group().decode(), timeout=15) as response:
+            context.load_verify_locations(cadata=response.read(65536))
+    _phone_contexts[base] = context
+    return context
+
+
 def download(url):
     if not url.startswith("https://"):
         raise Refused("Only https:// links are accepted.")
@@ -172,20 +203,29 @@ def phone_request(base, key, path, method="GET", body=None, content_type=None, t
     if content_type:
         request.add_header("Content-Type", content_type)
     try:
-        with urllib.request.urlopen(request, timeout=timeout, context=_ssl_context()) as response:
+        with urllib.request.urlopen(request, timeout=timeout, context=phone_context(base)) as response:
             return response.status, response.read()
     except urllib.error.HTTPError as e:
         return e.code, e.read()
 
 
-def install(apk, phone_url):
+def install(apk, phone_url, allow_app=False):
+    if not apk["is_tool"] and not allow_app:
+        raise Refused("This is an ordinary Android app, not a Light Tool. Tick the box above to send it anyway.")
     match = FILE_MANAGER_URL.match(phone_url.strip())
     if not match:
         raise Refused("That isn't the File Manager's address. Scan the QR code on the phone again.")
     base, key = match.groups()
     try:
         status, _ = phone_request(base, key, "/api/root", timeout=10)
-    except (urllib.error.URLError, TimeoutError, OSError):
+    except ssl.SSLError as e:
+        raise Refused(f"The phone's certificate didn't check out ({e.reason}), so nothing was sent.")
+    except urllib.error.URLError as e:
+        if isinstance(e.reason, ssl.SSLError):
+            raise Refused(f"The phone's certificate didn't check out ({e.reason.reason}), so nothing was sent.")
+        raise Refused("Can't reach the phone. Keep the File Manager on the phone's screen, put the phone and "
+                      "this computer on the same Wi-Fi, and turn off any VPN.")
+    except (TimeoutError, OSError):
         raise Refused("Can't reach the phone. Keep the File Manager on the phone's screen, put the phone and "
                       "this computer on the same Wi-Fi, and turn off any VPN.")
     if status == 401:
@@ -258,6 +298,9 @@ PAGE = r"""<!doctype html>
 <section id="s2" class="off"><h2>2. Check what it is</h2>
   <dl id="info"></dl>
   <p id="s2msg"></p>
+  <label id="appok" class="off"><input id="appbox" type="checkbox"> I understand this is an ordinary Android app,
+    not a Light Tool. It will appear in the Tools list and run with its Android permissions, and I trust where it
+    came from.</label>
 </section>
 
 <section id="s3" class="off"><h2>3. Show the phone's QR code</h2>
@@ -278,7 +321,7 @@ PAGE = r"""<!doctype html>
 const TOKEN = "__TOKEN__";
 const PHONE = /^https:\/\/[^\/#\s]+:54449\/?#[0-9a-f]{32,}$/;
 const $ = id => document.getElementById(id);
-let apkReady = false;
+let apkReady = false, isTool = true;
 
 async function api(path, body, type) {
   const r = await fetch(path, { method: "POST", headers: { "X-Token": TOKEN, "Content-Type": type || "application/json" }, body });
@@ -295,9 +338,11 @@ function showInfo(i, source) {
   for (const [k, v] of rows) { const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = k; dd.textContent = v; dl.append(dt, dd); }
   $("s2").classList.remove("off");
   const notes = [];
-  notes.push(i.is_tool ? "✓ This is a Light Tool." : "");
+  notes.push(i.is_tool ? "✓ This is a Light Tool." : "⚠ This isn't a Light Tool; it's an ordinary Android app. Light hasn't designed or reviewed it for this phone.");
+  $("appok").classList.toggle("off", i.is_tool); $("appbox").checked = false;
+  isTool = i.is_tool;
   notes.push(i.sha256_checked ? "✓ It matches the published SHA-256." : "No published SHA-256 to compare. Only install Tools from people you trust.");
-  say("s2msg", notes.filter(Boolean).join(" "), i.sha256_checked ? "ok" : "dim");
+  say("s2msg", notes.filter(Boolean).join(" "), !i.is_tool ? "bad" : i.sha256_checked ? "ok" : "dim");
   apkReady = true; $("s3").classList.remove("off"); ready();
 }
 async function load(promise, source) {
@@ -315,11 +360,12 @@ drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); fromFile
 $("fetch").onclick = () => { const u = $("link").value.trim(); if (u) load(api("/api/apk-url", JSON.stringify({ url: u, sha256: hash() })), u); };
 
 function ready() {
-  const ok = apkReady && PHONE.test($("phone").value.trim());
-  $("s4").classList.toggle("off", !ok);
-  if (ok) say("s3msg", "✓ Got the phone's address.", "ok");
+  const phone = PHONE.test($("phone").value.trim());
+  if (phone) say("s3msg", "✓ Got the phone's address.", "ok");
+  $("s4").classList.toggle("off", !(apkReady && phone && (isTool || $("appbox").checked)));
 }
 $("phone").oninput = ready;
+$("appbox").onchange = ready;
 let stream = null;
 $("cam").onclick = async () => {
   try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } }); }
@@ -342,7 +388,7 @@ function stopCam() { if (stream) stream.getTracks().forEach(t => t.stop()); stre
 
 $("go").onclick = async () => {
   $("go").disabled = true; say("s4msg", "Sending it to the phone and waiting for LightOS to install it…");
-  try { const r = await api("/api/install", JSON.stringify({ phone: $("phone").value.trim() }));
+  try { const r = await api("/api/install", JSON.stringify({ phone: $("phone").value.trim(), allow_app: $("appbox").checked }));
         say("s4msg", "✓ Installed. Find it in the phone's Tools list.", "ok"); }
   catch (e) { say("s4msg", e.message, "bad"); }
   $("go").disabled = false;
@@ -398,7 +444,9 @@ def make_handler(token, state, page):
                 if url.path == "/api/install":
                     if not state.get("apk"):
                         raise Refused("Choose the Tool first.")
-                    return self._send(200, install(state["apk"], str(json.loads(body or b"{}").get("phone", ""))))
+                    request = json.loads(body or b"{}")
+                    return self._send(200, install(state["apk"], str(request.get("phone", "")),
+                                                   request.get("allow_app") is True))
                 return self._send(404, {"error": "not found"})
             except Refused as e:
                 return self._send(400, {"error": str(e)})
@@ -407,9 +455,6 @@ def make_handler(token, state, page):
 
         def _accept(self, data, expected):
             info = inspect_apk(data, expected or None)
-            if not info["is_tool"] and not state["allow_any"]:
-                raise Refused(f"{info['package']} isn't a Light Tool; it's an ordinary Android app. The phone "
-                              "would install it without asking, so this installer won't send it.")
             state["apk"] = dict(info, data=data)
             return info
 
@@ -423,11 +468,9 @@ def main():
     parser = argparse.ArgumentParser(description="Install a Light Phone III Tool over Wi-Fi.")
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--no-browser", action="store_true", help="don't open the page")
-    parser.add_argument("--allow-non-tool", action="store_true",
-                        help="developers only: also send APKs that aren't Light Tools")
     args = parser.parse_args()
     token = secrets.token_urlsafe(24)
-    state = {"port": args.port, "allow_any": args.allow_non_tool, "apk": None}
+    state = {"port": args.port, "apk": None}
     page = (PAGE.replace("__JSQR__", JSQR).replace("__SRI__", JSQR_SRI).replace("__TOKEN__", token)).encode()
     try:
         server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(token, state, page))
