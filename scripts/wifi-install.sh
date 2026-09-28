@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Install a Tool on a Light Phone III over Wi-Fi through LightOS's File Manager, with no cable or adb.
 #
-#   scripts/wifi-install.sh [-a apk-file-or-url] [-h sha256] '<file manager url>'
+#   scripts/wifi-install.sh [-a apk-file-or-url] [-h sha256] ['<file manager url>']
 #
 # On the phone: Settings > Developer > Allowed tools = any, add one of Light's Tools with (+) once (that
 # creates the Tool Inbox folder), then open the File Manager from the debug menu and keep it on screen. The
 # url is the one its QR code holds, https://<ip>.my.local-ip.co:54449/#<key>; the key changes every open.
+# Without a url, scripts/qr-scan.py opens a camera page in the browser and reads the QR code off the phone.
 # Without -a this installs the light-doom release and checks its published SHA-256. Color still needs adb.
 set -euo pipefail
 release=https://github.com/yarosz/light-doom/releases/download/v0.1.0
@@ -15,11 +16,16 @@ while getopts "a:h:" opt; do
   case "$opt" in
     a) apk=$OPTARG; sha="" ;;
     h) sha=$OPTARG ;;
-    *) echo "usage: scripts/wifi-install.sh [-a apk-file-or-url] [-h sha256] '<file manager url>'" >&2; exit 2 ;;
+    *) echo "usage: scripts/wifi-install.sh [-a apk-file-or-url] [-h sha256] ['<file manager url>']" >&2; exit 2 ;;
   esac
 done
 shift $((OPTIND - 1))
-url=${1:?"usage: scripts/wifi-install.sh [-a apk-file-or-url] [-h sha256] '<file manager url>'"}
+url=${1:-}
+if [[ -z "$url" ]]; then
+  echo "hold the phone's File Manager QR code up to this computer's camera"
+  url=$(python3 "$(dirname "$0")/qr-scan.py") || exit 1
+  echo "read ${url%%#*}"
+fi
 
 base=$(printf '%s' "$url" | grep -oE '^https://[^/#]+')
 key=${url#*#}
