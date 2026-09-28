@@ -209,9 +209,8 @@ def phone_request(base, key, path, method="GET", body=None, content_type=None, t
         return e.code, e.read()
 
 
-def install(apk, phone_url, allow_app=False):
-    if not apk["is_tool"] and not allow_app:
-        raise Refused("This is an ordinary Android app, not a Light Tool. Tick the box above to send it anyway.")
+def connect(phone_url):
+    """Check the File Manager answers with this key; return (base, key)."""
     match = FILE_MANAGER_URL.match(phone_url.strip())
     if not match:
         raise Refused("That isn't the File Manager's address. Scan the QR code on the phone again.")
@@ -233,6 +232,13 @@ def install(apk, phone_url, allow_app=False):
                       "scan the QR code again.")
     if status != 200:
         raise Refused(f"The phone's File Manager answered {status}.")
+    return base, key
+
+
+def install(apk, phone_url, allow_app=False):
+    if not apk["is_tool"] and not allow_app:
+        raise Refused("This is an ordinary Android app, not a Light Tool. Tick the box above to send it anyway.")
+    base, key = connect(phone_url)
     name = apk["package"] + ".apk"
     status, body = phone_request(base, key, f"/api/upload/{INBOX}/{name}", "POST", apk["data"],
                                  "application/octet-stream", timeout=300)
@@ -247,7 +253,7 @@ def install(apk, phone_url, allow_app=False):
         except (urllib.error.URLError, TimeoutError, OSError):
             continue
         if name.encode() not in listing:
-            return {"installed": name}
+            return {"installed": name, "package": apk["package"]}
     raise Refused("The phone has the file but hasn't installed it after 90 seconds. Check that Settings > "
                   "Developer allows external Tools.")
 
@@ -309,11 +315,13 @@ PAGE = r"""<!doctype html>
   <div class="row"><button id="cam">Use the camera</button></div>
   <div class="row"><input id="phone" type="text" placeholder="…or paste the File Manager's address"></div>
   <p id="s3msg" class="dim"></p>
+  <p class="dim">The connection lasts until you press Back in the File Manager, so one scan covers any number of installs.</p>
 </section>
 
 <section id="s4" class="off"><h2>4. Install</h2>
-  <div class="row"><button id="go">Install on the phone</button></div>
+  <div class="row"><button id="go">Install on the phone</button><button id="another" class="off">Install another</button></div>
   <p id="s4msg" class="dim"></p>
+  <p id="done" class="dim off"></p>
 </section>
 </main>
 <script src="__JSQR__" integrity="__SRI__" crossorigin="anonymous"></script>
@@ -343,7 +351,7 @@ function showInfo(i, source) {
   isTool = i.is_tool;
   notes.push(i.sha256_checked ? "✓ It matches the published SHA-256." : "No published SHA-256 to compare. Only install Tools from people you trust.");
   say("s2msg", notes.filter(Boolean).join(" "), !i.is_tool ? "bad" : i.sha256_checked ? "ok" : "dim");
-  apkReady = true; $("s3").classList.remove("off"); ready();
+  apkReady = true; $("s3").classList.remove("off"); $("go").classList.remove("off"); $("another").classList.add("off"); ready();
 }
 async function load(promise, source) {
   apkReady = false; $("s2").classList.add("off"); say("s1msg", "Checking…");
@@ -359,12 +367,28 @@ drop.ondragleave = () => drop.classList.remove("over");
 drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); fromFile(e.dataTransfer.files[0]); };
 $("fetch").onclick = () => { const u = $("link").value.trim(); if (u) load(api("/api/apk-url", JSON.stringify({ url: u, sha256: hash() })), u); };
 
-function ready() {
-  const phone = PHONE.test($("phone").value.trim());
-  if (phone) say("s3msg", "✓ Got the phone's address.", "ok");
-  $("s4").classList.toggle("off", !(apkReady && phone && (isTool || $("appbox").checked)));
+let connected = false, since = null, checking = false;
+const installed = [];
+async function check() {
+  const phone = $("phone").value.trim();
+  if (!PHONE.test(phone) || checking) return;
+  checking = true;
+  try {
+    await api("/api/phone", JSON.stringify({ phone }));
+    if (!connected) since = new Date();
+    connected = true;
+    say("s3msg", "✓ Connected to the phone since " + since.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + ".", "ok");
+  } catch (e) {
+    const was = connected; connected = false; since = null;
+    say("s3msg", was ? "Lost the phone: the File Manager was closed or the phone left Wi-Fi. Scan its new QR code." : e.message, "bad");
+  }
+  checking = false; ready();
 }
-$("phone").oninput = ready;
+setInterval(check, 15000);
+function ready() {
+  $("s4").classList.toggle("off", !(apkReady && connected && (isTool || $("appbox").checked)));
+}
+$("phone").oninput = () => { connected = false; if (PHONE.test($("phone").value.trim())) check(); else ready(); };
 $("appbox").onchange = ready;
 let stream = null;
 $("cam").onclick = async () => {
@@ -378,7 +402,7 @@ $("cam").onclick = async () => {
     if (v.readyState === v.HAVE_ENOUGH_DATA) {
       c.width = v.videoWidth; c.height = v.videoHeight; g.drawImage(v, 0, 0);
       const code = jsQR(g.getImageData(0, 0, c.width, c.height).data, c.width, c.height, { inversionAttempts: "attemptBoth" });
-      if (code && PHONE.test(code.data)) { $("phone").value = code.data; stopCam(); ready(); return; }
+      if (code && PHONE.test(code.data)) { $("phone").value = code.data; stopCam(); connected = false; check(); return; }
       if (code) say("s3msg", "That QR code isn't the File Manager's. Show the one on the Light Phone.");
     }
     requestAnimationFrame(tick);
@@ -388,10 +412,23 @@ function stopCam() { if (stream) stream.getTracks().forEach(t => t.stop()); stre
 
 $("go").onclick = async () => {
   $("go").disabled = true; say("s4msg", "Sending it to the phone and waiting for LightOS to install it…");
-  try { const r = await api("/api/install", JSON.stringify({ phone: $("phone").value.trim(), allow_app: $("appbox").checked }));
-        say("s4msg", "✓ Installed. Find it in the phone's Tools list.", "ok"); }
-  catch (e) { say("s4msg", e.message, "bad"); }
+  try {
+    const r = await api("/api/install", JSON.stringify({ phone: $("phone").value.trim(), allow_app: $("appbox").checked }));
+    installed.push(r.package);
+    say("s4msg", "✓ Installed " + r.package + ". Find it in the phone's Tools list.", "ok");
+    $("done").textContent = "Installed this session: " + installed.join(", ");
+    $("done").classList.remove("off");
+    $("go").classList.add("off"); $("another").classList.remove("off");
+  } catch (e) { say("s4msg", e.message, "bad"); check(); }
   $("go").disabled = false;
+};
+$("another").onclick = () => {
+  apkReady = false;
+  $("link").value = ""; $("hash").value = ""; $("file").value = "";
+  $("s2").classList.add("off"); say("s1msg", ""); say("s4msg", "");
+  $("go").classList.remove("off"); $("another").classList.add("off");
+  ready();
+  $("s1").scrollIntoView({ behavior: "smooth" });
 };
 
 const q = new URLSearchParams(location.search);
@@ -441,6 +478,9 @@ def make_handler(token, state, page):
                     request = json.loads(body or b"{}")
                     expected = checked_sha(str(request.get("sha256", "")))
                     return self._send(200, self._accept(download(str(request.get("url", "")).strip()), expected))
+                if url.path == "/api/phone":
+                    connect(str(json.loads(body or b"{}").get("phone", "")))
+                    return self._send(200, {"connected": True})
                 if url.path == "/api/install":
                     if not state.get("apk"):
                         raise Refused("Choose the Tool first.")
