@@ -43,9 +43,9 @@ no cable, or with adb. Color needs adb once either way.
    It only makes Settings > Developer appear, for the next step; you can turn it off again afterwards.
 2. In the phone's Settings > Developer, set Allowed tools to All tools. Doom is dev-signed, not signed by Light,
    and with any other setting the phone installs it but hides it from the Tools list.
-3. Check that Settings shows Debug, where the File Manager is. On the phone this was tested on, Debug was there
-   after the Phone tool's code `*7412369#` had been dialed (see [With adb](#with-adb)); whether every phone
-   needs that hasn't been tested.
+3. Open the Phone tool and dial `*7412369#`. That's what makes Settings show Debug, where the File Manager is:
+   on the phone this was tested on, Debug never appeared until then. The code also opens the developer menu that
+   [With adb](#with-adb) uses, where nothing needs changing for Wi-Fi install.
 
 ### Over Wi-Fi
 
