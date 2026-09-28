@@ -33,15 +33,75 @@ during play while there was input in the last three minutes.
 
 ## Installing
 
-This is a dev-signed Tool, so the phone must accept Tools that Light hasn't signed: developer mode with USB
-debugging on, and External Tools set to "All tools". Then, with the phone attached:
+Tested on a Light Phone III (TLP301) with LightOS 582, firmware `00WW_1_440000`. You can install over Wi-Fi with
+no cable, or with adb. Color needs adb once either way.
+
+### Once, on the phone
+
+1. Turn on developer mode for your phone on Light's [user dashboard](https://dashboard.thelightphone.com), as in
+   Light's [Installing Tools Locally](https://github.com/lightphone/light-sdk/blob/main/docs/sideloading/README.md).
+2. In the phone's Settings > Developer, set Allowed tools to allow any Tool: this one is dev-signed, not signed by
+   Light.
+3. Add any of Light's own Tools with the (+) button at the bottom of the Tools list. On LightOS 582 that first
+   Light Tool is what creates the Tool Inbox the Wi-Fi install uploads to.
+
+### Over Wi-Fi
+
+Light's guide describes a `Developer` section in the phone's File Manager, which LightOS 582 doesn't show yet. Its
+Tool Inbox works, though, and `installer/lp3-install.py` uploads to it. It's one Python file that needs Python
+3.9 or newer (macOS includes it; on Windows, install it from [python.org](https://www.python.org/downloads/)).
+
+1. Put the phone and your computer on the same Wi-Fi, and turn off any VPN on the computer.
+2. Run `python3 installer/lp3-install.py` (on Windows, `py installer\lp3-install.py`). It opens a page at
+   `http://localhost:54450/`.
+3. Open this install link, which fills in Doom and its published SHA-256:
+   <http://localhost:54450/?apk=https%3A%2F%2Fgithub.com%2Fyarosz%2Flight-doom%2Freleases%2Fdownload%2Fv0.1.0%2Flight-doom-color-v0.1.0.apk&sha256=daaf4879211113ba2d4b1ac6af00a722689f25828fadcb57650023974f76fedb>
+4. On the phone, open Settings > Debug > File Manager. Hold its QR code up to your computer's camera, or paste the
+   address it shows.
+5. Click Install on the phone, then open Doom from LightOS's Tools list.
+
+The page installs other Tools too: drop in an APK file or paste a link to one. It shows the package, version,
+permissions and SHA-256 first, notes when an APK is an ordinary Android app rather than a Light Tool, and refuses
+one whose SHA-256 doesn't match the hash you give it. LightOS installs whatever reaches the Tool Inbox without
+asking, so only install APKs from people you trust.
+
+One scan lasts until you press Back in the File Manager: the screen can sleep and you can install several Tools in a
+row. Updates through the page keep an earlier color grant. `scripts/wifi-install.sh` does the same from a
+terminal: run it with no arguments and it reads the QR code with your camera.
+
+### With adb
+
+Light doesn't document turning on USB debugging. The route LP3 owners use: open the Phone tool, dial `*7412369#`
+to open the developer menu, and turn on "Android Dev Mode" (USB debugging). Change only that toggle. You also need
+`adb` from Android's [platform-tools](https://developer.android.com/tools/releases/platform-tools) and a USB-C cable
+that carries data, and the phone awake and unlocked (it drops off USB when it sleeps).
+
+1. Check the phone shows up: `adb devices`.
+2. Install (skip this if you installed over Wi-Fi) and grant color:
+   ```
+   adb install light-doom-color-v0.1.0.apk
+   adb shell pm grant com.yarosz.doom android.permission.WRITE_SECURE_SETTINGS
+   ```
+3. Open Doom from LightOS's Tools list, and tap COLOR (see [Color](#color)).
+
+### From source
+
+You also need [mise](https://mise.jdx.dev), which installs Java 17 and the Android command-line tools from
+`mise.toml`, and the Android SDK packages the build asks for (`sdkmanager` can install them). Only macOS has been
+tried. Clone with the Light SDK submodule, then build, install and launch in one step:
 
 ```
-scripts/run.sh -v release        # build, install and launch; add -c for the color build
+git clone --recurse-submodules https://github.com/yarosz/light-doom.git
+cd light-doom
+mise trust && mise install
+mise exec -- scripts/run.sh -v release        # add -c for the color build
 ```
 
-The toolchain comes from [mise](https://mise.jdx.dev) (`mise.toml`: Java 17, Android SDK). The Light SDK is a
-submodule pinned to v0.1.2: clone with `--recurse-submodules`, or run `git submodule update --init`.
+### Removing it
+
+With adb, `adb uninstall com.yarosz.doom`; otherwise as you remove any Tool. Uninstalling also drops the color
+grant. If the grayscale filter was ever left off (see Color), open and leave a photo in LightOS's album to restore
+it.
 
 ## Color
 
@@ -77,6 +137,9 @@ Doom's tick rate is 35 Hz, so both run at full speed. The interpreter uses about
 - `scripts/run.sh [-s serial] [-d seconds] [-v debug|release] [-c]` builds, installs and launches on the attached
   LP3 (else the emulator) and reports the frame rate from the Tool's `perf` log lines.
 - `scripts/touch-check.sh [serial]` checks that touches reach the right controls through the rotation.
+- `installer/lp3-install.py [--port N] [--no-browser]` serves the Wi-Fi install page (see Installing).
+- `scripts/wifi-install.sh [-a apk-file-or-url] [-h sha256] ['<file manager url>']` installs over Wi-Fi from a
+  terminal; without a url, `scripts/qr-scan.py` reads the File Manager's QR code with the camera.
 - `mise run light-build` rehearses Light's release builder on the default build (`--tree` for the working tree).
 - `scripts/vendor.py <chasm> <kotlin-result> <mood>` regenerates the vendored source (see below).
 

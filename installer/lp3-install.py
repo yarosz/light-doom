@@ -12,8 +12,8 @@ opens with that Tool filled in. The installer must be running for the link to op
 
 Only the standard library is used, so any Python 3.9+ runs it. LightOS installs whatever reaches the Tool
 Inbox, with no prompt: Light Tools, and ordinary Android apps too, which then appear in the Tools list when
-the phone allows all Tools. So this refuses APKs whose SHA-256 doesn't match, and sends an APK that isn't a
-Light Tool only after the person ticks a box saying they understand.
+the phone allows all Tools. So this shows what an APK is before sending it, notes when it isn't a Light Tool,
+and refuses one whose SHA-256 doesn't match the published hash.
 """
 import argparse
 import hashlib
@@ -235,9 +235,7 @@ def connect(phone_url):
     return base, key
 
 
-def install(apk, phone_url, allow_app=False):
-    if not apk["is_tool"] and not allow_app:
-        raise Refused("This is an ordinary Android app, not a Light Tool. Tick the box above to send it anyway.")
+def install(apk, phone_url):
     base, key = connect(phone_url)
     name = apk["package"] + ".apk"
     status, body = phone_request(base, key, f"/api/upload/{INBOX}/{name}", "POST", apk["data"],
@@ -304,9 +302,6 @@ PAGE = r"""<!doctype html>
 <section id="s2" class="off"><h2>2. Check what it is</h2>
   <dl id="info"></dl>
   <p id="s2msg"></p>
-  <label id="appok" class="off"><input id="appbox" type="checkbox"> I understand this is an ordinary Android app,
-    not a Light Tool. It will appear in the Tools list and run with its Android permissions, and I trust where it
-    came from.</label>
 </section>
 
 <section id="s3" class="off"><h2>3. Show the phone's QR code</h2>
@@ -329,7 +324,7 @@ PAGE = r"""<!doctype html>
 const TOKEN = "__TOKEN__";
 const PHONE = /^https:\/\/[^\/#\s]+:54449\/?#[0-9a-f]{32,}$/;
 const $ = id => document.getElementById(id);
-let apkReady = false, isTool = true;
+let apkReady = false;
 
 async function api(path, body, type) {
   const r = await fetch(path, { method: "POST", headers: { "X-Token": TOKEN, "Content-Type": type || "application/json" }, body });
@@ -346,11 +341,9 @@ function showInfo(i, source) {
   for (const [k, v] of rows) { const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = k; dd.textContent = v; dl.append(dt, dd); }
   $("s2").classList.remove("off");
   const notes = [];
-  notes.push(i.is_tool ? "✓ This is a Light Tool." : "⚠ This isn't a Light Tool; it's an ordinary Android app. Light hasn't designed or reviewed it for this phone.");
-  $("appok").classList.toggle("off", i.is_tool); $("appbox").checked = false;
-  isTool = i.is_tool;
+  notes.push(i.is_tool ? "✓ This is a Light Tool." : "This is an ordinary Android app rather than a Light Tool. It will still appear in the Tools list.");
   notes.push(i.sha256_checked ? "✓ It matches the published SHA-256." : "No published SHA-256 to compare. Only install Tools from people you trust.");
-  say("s2msg", notes.filter(Boolean).join(" "), !i.is_tool ? "bad" : i.sha256_checked ? "ok" : "dim");
+  say("s2msg", notes.filter(Boolean).join(" "), i.sha256_checked ? "ok" : "dim");
   apkReady = true; $("s3").classList.remove("off"); $("go").classList.remove("off"); $("another").classList.add("off"); ready();
 }
 async function load(promise, source) {
@@ -386,10 +379,9 @@ async function check() {
 }
 setInterval(check, 15000);
 function ready() {
-  $("s4").classList.toggle("off", !(apkReady && connected && (isTool || $("appbox").checked)));
+  $("s4").classList.toggle("off", !(apkReady && connected));
 }
 $("phone").oninput = () => { connected = false; if (PHONE.test($("phone").value.trim())) check(); else ready(); };
-$("appbox").onchange = ready;
 let stream = null;
 $("cam").onclick = async () => {
   try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 } } }); }
@@ -413,7 +405,7 @@ function stopCam() { if (stream) stream.getTracks().forEach(t => t.stop()); stre
 $("go").onclick = async () => {
   $("go").disabled = true; say("s4msg", "Sending it to the phone and waiting for LightOS to install it…");
   try {
-    const r = await api("/api/install", JSON.stringify({ phone: $("phone").value.trim(), allow_app: $("appbox").checked }));
+    const r = await api("/api/install", JSON.stringify({ phone: $("phone").value.trim() }));
     installed.push(r.package);
     say("s4msg", "✓ Installed " + r.package + ". Find it in the phone's Tools list.", "ok");
     $("done").textContent = "Installed this session: " + installed.join(", ");
@@ -484,9 +476,7 @@ def make_handler(token, state, page):
                 if url.path == "/api/install":
                     if not state.get("apk"):
                         raise Refused("Choose the Tool first.")
-                    request = json.loads(body or b"{}")
-                    return self._send(200, install(state["apk"], str(request.get("phone", "")),
-                                                   request.get("allow_app") is True))
+                    return self._send(200, install(state["apk"], str(json.loads(body or b"{}").get("phone", ""))))
                 return self._send(404, {"error": "not found"})
             except Refused as e:
                 return self._send(400, {"error": str(e)})
