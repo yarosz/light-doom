@@ -43,9 +43,6 @@ no cable, or with adb. Color needs adb once either way.
 2. In the phone's Settings > Developer, set Allowed tools to allow any Tool. Doom is dev-signed, not signed by
    Light, and needs it: with a stricter setting, LightOS's code refuses to let it talk to LightOS, so it installs
    but doesn't work. (That's from reading LightOS; only the "any" setting has been tried on a phone.)
-3. Add Weather or Authenticator with the (+) button at the bottom of the Tools list. LightOS downloads these
-   when you add them, and on LightOS 582 that download is what creates the Tool Inbox; until then the phone
-   refuses uploads. Tools that are already on the phone don't create it.
 
 ### Over Wi-Fi
 
@@ -61,6 +58,9 @@ Tool Inbox of the phone's File Manager and needs only Python on your computer. L
 5. Click Install on the phone, then open Doom from LightOS's Tools list.
 
 Updating Doom this way keeps an earlier color grant.
+
+If the upload is refused, see [If the phone refuses the upload](https://github.com/yarosz/lightphone-wifi-install#if-the-phone-refuses-the-upload)
+in lightphone-wifi-install; on the phone this was tested on, adding a new Tool with (+) first fixed it.
 
 ### With adb
 
