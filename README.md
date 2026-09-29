@@ -5,6 +5,15 @@ SDK sandbox. It's a proof of concept for tinkerers, shared for what it shows abo
 It isn't an official Tool, isn't submitted to Light's Tool directory, and isn't affiliated with Light or id
 Software.
 
+<p>
+  <img src="docs/screenshots/water.png" alt="Doom on a Light Phone III in color: a room with blue water, the pistol, both touch sticks and the status bar" width="32%">
+  <img src="docs/screenshots/courtyard.png" alt="Doom in color: an outdoor courtyard with sky and an armor bonus" width="32%">
+  <img src="docs/screenshots/menu.png" alt="Doom's main menu in color over the game" width="32%">
+</p>
+
+Screenshots from the phone with the color build and COLOR on, turned upright; hold the phone sideways to play.
+Without the color build it runs in LightOS's grayscale.
+
 How it works: id's C Doom, compiled to WebAssembly ([CharlieTap/doom.wasm](https://github.com/CharlieTap/doom.wasm),
 by way of [CharlieTap/mood](https://github.com/CharlieTap/mood)), runs on [Chasm](https://github.com/CharlieTap/chasm),
 a WebAssembly interpreter written in Kotlin. The Tool draws Doom's frames with Compose Canvas. No native code,
