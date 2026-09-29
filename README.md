@@ -5,6 +5,15 @@ SDK sandbox. It's a proof of concept for tinkerers, shared for what it shows abo
 It isn't an official Tool, isn't submitted to Light's Tool directory, and isn't affiliated with Light or id
 Software.
 
+<p align="center">
+  <a href="https://www.reddit.com/r/itrunsdoom/comments/1wsyzcd/doom_on_the_light_phone_iii_the_minimalist/">
+    <img src="docs/screenshots/playing.gif" alt="Hands holding a Light Phone III sideways, playing Doom in color with the on-screen touch sticks" width="480">
+  </a>
+</p>
+
+Playing on the phone; the [full video with sound](https://www.reddit.com/r/itrunsdoom/comments/1wsyzcd/doom_on_the_light_phone_iii_the_minimalist/)
+is on r/itrunsdoom.
+
 <p>
   <img src="docs/screenshots/water.png" alt="Doom on a Light Phone III in color: a room with blue water, the pistol, both touch sticks and the status bar" width="32%">
   <img src="docs/screenshots/courtyard.png" alt="Doom in color: an outdoor courtyard with sky and an armor bonus" width="32%">
