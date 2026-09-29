@@ -7,7 +7,7 @@ Software.
 
 <p align="center">
   <a href="https://www.reddit.com/r/itrunsdoom/comments/1wsyzcd/doom_on_the_light_phone_iii_the_minimalist/">
-    <img src="docs/screenshots/playing.gif" alt="Hands holding a Light Phone III sideways, playing Doom in color with the on-screen touch sticks" width="480">
+    <img src="docs/screenshots/playing.gif" alt="Hands holding a Light Phone III sideways, playing Doom in color: the touch sticks, then firing with the camera shutter" width="480">
   </a>
 </p>
 
